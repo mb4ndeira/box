@@ -62,6 +62,7 @@ class ProjectContextConfig:
 class ProjectConfig:
     name: str
     path: str
+    repo: Optional[str] = None   # github owner/name — required for docker executor
     workers: int = 1
     services: ProjectServicesConfig = field(default_factory=ProjectServicesConfig)
     context: ProjectContextConfig = field(default_factory=ProjectContextConfig)
@@ -154,6 +155,7 @@ def load_config(path: str) -> BoxConfig:
             ProjectConfig(
                 name=p["name"],
                 path=os.path.expanduser(p["path"]),
+                repo=p.get("repo"),
                 workers=p.get("workers", 1),
                 services=ProjectServicesConfig(infisical=svc_raw.get("infisical", False)),
                 context=ProjectContextConfig(

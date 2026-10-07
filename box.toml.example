@@ -48,6 +48,7 @@ workspace_map = "~/workspace/agents/docs/workspace/projects.toml"
 [[projects]]
 name    = "my-project"
 path    = "~/workspace/my-project"
+repo    = "owner/my-project"   # github owner/repo — required for docker executor (enables clone mode)
 workers = 1             # max concurrent workers for this project
 
 # Per-project service requirements (provision before worker runs)
