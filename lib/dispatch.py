@@ -11,7 +11,8 @@ EXECUTORS = os.path.join(os.path.dirname(__file__), "executor")
 
 def dispatch_task(config: BoxConfig, project_name: str, task: str, dry_run: bool = False) -> None:
     project = config.project(project_name)
-    executor = config.runtime.executor
+    # BOX_EXECUTOR env var overrides config — useful for switching without editing box.toml
+    executor = os.environ.get("BOX_EXECUTOR") or config.runtime.executor
 
     script = os.path.join(EXECUTORS, f"{executor}.sh")
     if not os.path.exists(script):
