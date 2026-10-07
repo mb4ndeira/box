@@ -28,6 +28,10 @@ RUN curl -fsSL https://opencode.ai/install | bash
 
 # Worker scripts
 COPY worker/entrypoint.sh /usr/local/bin/entrypoint
-RUN chmod +x /usr/local/bin/entrypoint
+COPY worker/init-auth.sh  /usr/local/bin/init-auth
+RUN chmod +x /usr/local/bin/entrypoint /usr/local/bin/init-auth
 
-ENTRYPOINT ["/usr/local/bin/entrypoint"]
+# init-auth configures git credentials from GH_TOKEN at container startup,
+# then hands off to entrypoint. Auth is the container's responsibility;
+# the entrypoint assumes git is already configured.
+ENTRYPOINT ["/usr/local/bin/init-auth"]

@@ -36,17 +36,12 @@ echo "box worker: ${PROJECT_NAME} — ${TASK}"
 # ── Prepare working directory ─────────────────────────────────────────────────
 
 if [[ -n "${BOX_PROJECT_REPO:-}" ]]; then
-    # Clone mode: fresh isolated copy inside this executor environment
+    # Clone mode: fresh isolated copy inside this executor environment.
+    # Git auth is the executor's responsibility — the container image must be
+    # pre-configured (e.g. via GH_TOKEN + gh auth setup-git in the Dockerfile).
     WORK_DIR="${PROJECT_PATH}/box-worker-$(date +%s)"
     mkdir -p "$(dirname "$WORK_DIR")"
-
-    CLONE_OPTS=()
-    if [[ -n "${BOX_GITHUB_TOKEN:-}" ]]; then
-        # Use a credential header so the token never appears in any URL
-        CLONE_OPTS+=(-c "http.extraHeader=Authorization: token ${BOX_GITHUB_TOKEN}")
-    fi
-
-    git clone --depth 1 "${CLONE_OPTS[@]}" "$BOX_PROJECT_REPO" "$WORK_DIR"
+    git clone --depth 1 "$BOX_PROJECT_REPO" "$WORK_DIR"
     cd "$WORK_DIR"
 else
     # Local mode: use existing checkout

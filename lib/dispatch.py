@@ -55,11 +55,6 @@ def _build_env(config: BoxConfig, project, task: str, context_file: str, executo
     if project.repo:
         env["BOX_PROJECT_REPO"] = f"https://github.com/{project.repo}.git"
 
-    # Pass through GitHub token for private repo clones inside the executor
-    gh_token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    if gh_token:
-        env["BOX_GITHUB_TOKEN"] = gh_token
-
     if executor == "ssh" and config.runtime.ssh:
         env["BOX_SSH_HOST"] = config.runtime.ssh.host
         if config.runtime.ssh.user:
