@@ -9,6 +9,13 @@ class ConfigError(Exception):
 
 
 @dataclass
+class TargetConfig:
+    name: str
+    host: str
+    user: Optional[str] = None
+
+
+@dataclass
 class SshExecutorConfig:
     host: str
     user: Optional[str] = None
@@ -24,19 +31,20 @@ class DockerExecutorConfig:
 class OpenCodeProviderConfig:
     model: str
     api_url: str
-    api_key: str  # resolved from env
+    api_key: str
 
 
 @dataclass
 class ClaudeProviderConfig:
-    api_key: Optional[str] = None  # defaults to $ANTHROPIC_API_KEY
+    api_key: Optional[str] = None
 
 
 @dataclass
 class RuntimeConfig:
-    executor: str  # local | ssh | docker
-    provider: str  # claude | opencode
-    ssh: Optional[SshExecutorConfig] = None
+    executor: str           # local | docker | remote-docker | ssh
+    provider: str           # claude | opencode
+    target: Optional[str] = None  # logical name resolved from targets.toml
+    ssh: Optional[SshExecutorConfig] = None      # backward compat; prefer target
     docker: Optional[DockerExecutorConfig] = None
     opencode: Optional[OpenCodeProviderConfig] = None
     claude: Optional[ClaudeProviderConfig] = None
@@ -62,7 +70,7 @@ class ProjectContextConfig:
 class ProjectConfig:
     name: str
     path: str
-    repo: Optional[str] = None   # github owner/name — required for docker executor
+    repo: Optional[str] = None
     workers: int = 1
     services: ProjectServicesConfig = field(default_factory=ProjectServicesConfig)
     context: ProjectContextConfig = field(default_factory=ProjectContextConfig)
@@ -73,6 +81,7 @@ class BoxConfig:
     runtime: RuntimeConfig
     context: ContextConfig
     projects: list[ProjectConfig]
+    targets: dict[str, TargetConfig] = field(default_factory=dict)
     _path: str = ""
 
     def project(self, name: str) -> ProjectConfig:
@@ -81,9 +90,32 @@ class BoxConfig:
                 return p
         raise ConfigError(f"project '{name}' not found in box.toml")
 
+    def resolve_target(self) -> Optional[TargetConfig]:
+        """Return the TargetConfig for runtime.target, or None if no target is set."""
+        if not self.runtime.target:
+            return None
+        t = self.targets.get(self.runtime.target)
+        if t is None:
+            raise ConfigError(
+                f"target '{self.runtime.target}' not found in targets.toml — "
+                f"copy targets.toml.example and fill in the host"
+            )
+        return t
+
+    def ssh_host(self) -> tuple[str, Optional[str]]:
+        """Return (host, user) for SSH-based executors."""
+        target = self.resolve_target()
+        if target:
+            return target.host, target.user
+        if self.runtime.ssh:
+            return self.runtime.ssh.host, self.runtime.ssh.user
+        raise ConfigError(
+            "no SSH target configured — set runtime.target in box.toml "
+            "and define it in targets.toml, or set [runtime.ssh] host"
+        )
+
 
 def _expand_env(value: str) -> str:
-    """Expand ${VAR} patterns in a string."""
     import re
     def replace(m):
         var = m.group(1)
@@ -92,6 +124,18 @@ def _expand_env(value: str) -> str:
             raise ConfigError(f"environment variable ${var} is not set")
         return val
     return re.sub(r"\$\{([^}]+)\}", replace, value)
+
+
+def _load_targets(box_toml_path: str) -> dict[str, TargetConfig]:
+    targets_path = os.path.join(os.path.dirname(box_toml_path), "targets.toml")
+    if not os.path.exists(targets_path):
+        return {}
+    with open(targets_path, "rb") as f:
+        raw = tomllib.load(f)
+    result = {}
+    for name, t in raw.get("targets", {}).items():
+        result[name] = TargetConfig(name=name, host=t["host"], user=t.get("user"))
+    return result
 
 
 def load_config(path: str) -> BoxConfig:
@@ -105,6 +149,7 @@ def load_config(path: str) -> BoxConfig:
     r = raw.get("runtime", {})
     executor = r.get("executor", "local")
     provider = r.get("provider", "claude")
+    target   = r.get("target")
 
     ssh = None
     if "ssh" in r:
@@ -127,12 +172,12 @@ def load_config(path: str) -> BoxConfig:
 
     claude = None
     if "claude" in r:
-        c = r.get("claude", {})
-        claude = ClaudeProviderConfig(api_key=c.get("api_key"))
+        claude = ClaudeProviderConfig(api_key=r["claude"].get("api_key"))
 
     runtime = RuntimeConfig(
         executor=executor,
         provider=provider,
+        target=target,
         ssh=ssh,
         docker=docker,
         opencode=opencode,
@@ -164,4 +209,6 @@ def load_config(path: str) -> BoxConfig:
             )
         )
 
-    return BoxConfig(runtime=runtime, context=context, projects=projects, _path=path)
+    targets = _load_targets(path)
+
+    return BoxConfig(runtime=runtime, context=context, projects=projects, targets=targets, _path=path)

@@ -7,18 +7,21 @@
 # ── Runtime ───────────────────────────────────────────────────────────────────
 
 [runtime]
-executor = "local"      # local | ssh | docker
-provider = "claude"     # claude | opencode
+executor = "remote-docker"  # local | docker | remote-docker | ssh
+provider = "claude"          # claude | opencode
+target   = "worker"          # logical name — resolved from targets.toml (gitignored)
+                             # targets.toml maps "worker" → actual SSH host for this machine
 
-# SSH executor config — used when executor = "ssh"
-[runtime.ssh]
-host = "korora"         # hostname or tailscale name
-user = "ubuntu"         # omit to use current user
-
-# Docker executor config — used when executor = "docker"
+# Docker image config — used by docker and remote-docker executors
+# remote-docker: image must be present on the target machine (build there or push to a registry)
 [runtime.docker]
-image   = "ghcr.io/mb4ndeira/box-worker:latest"
-runtime = "kata"        # optional: kata for VM-level isolation
+image   = "box-worker:latest"
+runtime = "kata"        # optional: kata for Kata VM isolation on Linux; ignored silently on Mac
+
+# Backward compat: direct SSH host (prefer target + targets.toml instead)
+# [runtime.ssh]
+# host = "korora"       # hostname or tailscale name
+# user = "ubuntu"       # omit to use current user
 
 # OpenCode provider config — used when provider = "opencode"
 [runtime.opencode]
