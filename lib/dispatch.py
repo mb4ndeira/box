@@ -23,7 +23,7 @@ def dispatch_task(config: BoxConfig, project_name: str, task: str, dry_run: bool
 
     try:
         write_context_file(config, project, context_file)
-        env = _build_env(config, project, task, context_file)
+        env = _build_env(config, project, task, context_file, executor)
 
         if dry_run:
             print(f"[dry-run] executor: {executor}")
@@ -31,7 +31,8 @@ def dispatch_task(config: BoxConfig, project_name: str, task: str, dry_run: bool
             print(f"[dry-run] task:     {task}")
             print(f"[dry-run] env:")
             for k, v in sorted(env.items()):
-                print(f"           {k}={v}")
+                display = "<redacted>" if "KEY" in k or "TOKEN" in k or "SECRET" in k else v
+                print(f"           {k}={display}")
             return
 
         print(f"box: dispatching '{task}' on {project.name} via {executor}")
@@ -41,22 +42,22 @@ def dispatch_task(config: BoxConfig, project_name: str, task: str, dry_run: bool
         os.unlink(context_file)
 
 
-def _build_env(config: BoxConfig, project, task: str, context_file: str) -> dict:
+def _build_env(config: BoxConfig, project, task: str, context_file: str, executor: str) -> dict:
     env = {
         "BOX_PROJECT_NAME": project.name,
         "BOX_PROJECT_PATH": project.path,
         "BOX_TASK":         task,
         "BOX_CONTEXT_FILE": context_file,
         "BOX_PROVIDER":     config.runtime.provider,
-        "BOX_EXECUTOR":     config.runtime.executor,
+        "BOX_EXECUTOR":     executor,
     }
 
-    if config.runtime.executor == "ssh" and config.runtime.ssh:
+    if executor == "ssh" and config.runtime.ssh:
         env["BOX_SSH_HOST"] = config.runtime.ssh.host
         if config.runtime.ssh.user:
             env["BOX_SSH_USER"] = config.runtime.ssh.user
 
-    if config.runtime.executor == "docker" and config.runtime.docker:
+    if executor == "docker" and config.runtime.docker:
         env["BOX_DOCKER_IMAGE"]   = config.runtime.docker.image
         if config.runtime.docker.runtime:
             env["BOX_DOCKER_RUNTIME"] = config.runtime.docker.runtime

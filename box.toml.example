@@ -10,24 +10,24 @@
 executor = "local"      # local | ssh | docker
 provider = "claude"     # claude | opencode
 
-# SSH executor — run worker on a remote machine
-[runtime.executor.ssh]
+# SSH executor config — used when executor = "ssh"
+[runtime.ssh]
 host = "korora"         # hostname or tailscale name
 user = "ubuntu"         # omit to use current user
 
-# Docker executor — run worker in an isolated container
-[runtime.executor.docker]
+# Docker executor config — used when executor = "docker"
+[runtime.docker]
 image   = "ghcr.io/mb4ndeira/box-worker:latest"
 runtime = "kata"        # optional: kata for VM-level isolation
 
-# OpenCode provider — use when running workers via OpenCode CLI
-[runtime.provider.opencode]
+# OpenCode provider config — used when provider = "opencode"
+[runtime.opencode]
 model   = "9router/glm/glm-5.3-flash"
 api_url = "http://100.102.189.40:20128/v1"
 api_key = "${OPENAI_API_KEY}"
 
-# Claude provider — use when running workers via Claude Code CLI
-[runtime.provider.claude]
+# Claude provider config — used when provider = "claude"
+[runtime.claude]
 # api_key defaults to $ANTHROPIC_API_KEY
 
 # ── Context — tacit knowledge injected into every worker ─────────────────────

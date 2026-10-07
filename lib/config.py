@@ -106,18 +106,18 @@ def load_config(path: str) -> BoxConfig:
     provider = r.get("provider", "claude")
 
     ssh = None
-    if "executor" in r and "ssh" in r["executor"]:
-        s = r["executor"]["ssh"]
+    if "ssh" in r:
+        s = r["ssh"]
         ssh = SshExecutorConfig(host=s["host"], user=s.get("user"))
 
     docker = None
-    if "executor" in r and "docker" in r["executor"]:
-        d = r["executor"]["docker"]
+    if "docker" in r:
+        d = r["docker"]
         docker = DockerExecutorConfig(image=d["image"], runtime=d.get("runtime"))
 
     opencode = None
-    if "provider" in r and "opencode" in r["provider"]:
-        o = r["provider"]["opencode"]
+    if "opencode" in r:
+        o = r["opencode"]
         opencode = OpenCodeProviderConfig(
             model=o["model"],
             api_url=o["api_url"],
@@ -125,8 +125,8 @@ def load_config(path: str) -> BoxConfig:
         )
 
     claude = None
-    if "provider" in r and "claude" in r["provider"]:
-        c = r["provider"].get("claude", {})
+    if "claude" in r:
+        c = r.get("claude", {})
         claude = ClaudeProviderConfig(api_key=c.get("api_key"))
 
     runtime = RuntimeConfig(
