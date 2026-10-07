@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from dispatch import dispatch_task
 from provision import provision_project
 from status import show_status
+from build import build_image
 from config import load_config, ConfigError
 
 DEFAULT_CONFIG = os.path.expanduser("~/workspace/factory/box.toml")
@@ -32,6 +33,10 @@ def cmd_provision(args, config):
 
 def cmd_status(args, config):
     show_status(config)
+
+
+def cmd_build(args, config):
+    build_image(tag=args.tag)
 
 
 def main():
@@ -52,7 +57,16 @@ def main():
     p_status = sub.add_parser("status", help="show worker status")
     p_status.set_defaults(func=cmd_status)
 
+    p_build = sub.add_parser("build", help="build the worker Docker image")
+    p_build.add_argument("--tag", default="box-worker:latest", help="image tag")
+    p_build.set_defaults(func=cmd_build)
+
     args = parser.parse_args()
+
+    # build doesn't need a valid config
+    if args.command == "build":
+        args.func(args, None)
+        return
 
     try:
         config = load_config(args.config)

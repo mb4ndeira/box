@@ -23,9 +23,9 @@ while IFS='=' read -r key _; do
     ENV_FLAGS+=("--env" "$key")
 done < <(env | grep '^BOX_')
 
-# Pass GitHub token for private repo clones
-if [[ -n "${BOX_GITHUB_TOKEN:-}" ]]; then
-    ENV_FLAGS+=("--env" "BOX_GITHUB_TOKEN")
+# Pass GitHub token so init-auth.sh can configure git inside the container
+if [[ -n "${GH_TOKEN:-}" ]]; then
+    ENV_FLAGS+=("--env" "GH_TOKEN")
 fi
 
 # Context file is host-side — mount it read-only into the container
