@@ -70,11 +70,10 @@ def main():
 
     try:
         config = load_config(args.config)
+        args.func(args, config)
     except ConfigError as e:
         print(f"box: {e}", file=sys.stderr)
         sys.exit(1)
-
-    args.func(args, config)
 
 
 if __name__ == "__main__":
