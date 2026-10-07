@@ -9,6 +9,7 @@ Usage:
 """
 
 import argparse
+import subprocess
 import sys
 import os
 
@@ -74,6 +75,8 @@ def main():
     except ConfigError as e:
         print(f"box: {e}", file=sys.stderr)
         sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        sys.exit(e.returncode)
 
 
 if __name__ == "__main__":

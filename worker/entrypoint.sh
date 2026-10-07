@@ -58,6 +58,12 @@ git checkout -b "$BRANCH"
 
 TASK_MSG="Your task: ${TASK}. Work in $(pwd). Follow all standards in the attached context. When done: commit using conventional commits, then open a PR against main."
 
+# Write task to a temp file so it can be attached with -f.
+# This avoids positional-arg parsing issues in opencode (e.g. JSON-like task strings).
+TASK_FILE=$(mktemp /tmp/box-task-XXXXXX.md)
+printf '%s\n' "$TASK_MSG" > "$TASK_FILE"
+trap 'rm -f "$TASK_FILE"' EXIT
+
 case "$PROVIDER" in
     opencode)
         export OPENAI_BASE_URL="${BOX_OPENCODE_API_URL:?}"
@@ -66,11 +72,13 @@ case "$PROVIDER" in
             --model "${BOX_OPENCODE_MODEL:?}" \
             --dir "$(pwd)" \
             -f "$CONTEXT_FILE" \
+            --auto \
             ${OPENCODE_FLAGS:-} \
-            "$TASK_MSG"
+            "$TASK_FILE"
         ;;
     claude)
-        claude ${CLAUDE_FLAGS:-} --print "$TASK_MSG"
+        [[ -n "${BOX_CLAUDE_API_KEY:-}" ]] && export ANTHROPIC_API_KEY="${BOX_CLAUDE_API_KEY}"
+        claude --print ${CLAUDE_FLAGS:-} "$TASK_MSG"
         ;;
     *)
         echo "box: unknown provider: $PROVIDER" >&2

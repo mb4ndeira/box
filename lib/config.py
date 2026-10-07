@@ -162,7 +162,7 @@ def load_config(path: str) -> BoxConfig:
         docker = DockerExecutorConfig(image=d["image"], runtime=d.get("runtime"))
 
     opencode = None
-    if "opencode" in r:
+    if "opencode" in r and provider == "opencode":
         o = r["opencode"]
         opencode = OpenCodeProviderConfig(
             model=o["model"],
@@ -171,8 +171,9 @@ def load_config(path: str) -> BoxConfig:
         )
 
     claude = None
-    if "claude" in r:
-        claude = ClaudeProviderConfig(api_key=r["claude"].get("api_key"))
+    if "claude" in r and provider == "claude":
+        raw_key = r["claude"].get("api_key")
+        claude = ClaudeProviderConfig(api_key=_expand_env(raw_key) if raw_key else None)
 
     runtime = RuntimeConfig(
         executor=executor,

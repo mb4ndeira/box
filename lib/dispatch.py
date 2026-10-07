@@ -75,4 +75,8 @@ def _build_env(config: BoxConfig, project, task: str, context_file: str, executo
         env["BOX_OPENCODE_API_URL"] = config.runtime.opencode.api_url
         env["BOX_OPENCODE_API_KEY"] = config.runtime.opencode.api_key
 
+    if config.runtime.provider == "claude" and config.runtime.claude:
+        if config.runtime.claude.api_key:
+            env["BOX_CLAUDE_API_KEY"] = config.runtime.claude.api_key
+
     return env

@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
     jq \
     bash \
     ca-certificates \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # GitHub CLI
@@ -24,7 +26,11 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && rm -rf /var/lib/apt/lists/*
 
 # OpenCode CLI
-RUN curl -fsSL https://opencode.ai/install | bash
+RUN curl -fsSL https://opencode.ai/install | bash \
+    && ln -s /root/.opencode/bin/opencode /usr/local/bin/opencode
+
+# Claude Code CLI
+RUN npm install -g @anthropic-ai/claude-code
 
 # Worker scripts
 COPY worker/entrypoint.sh /usr/local/bin/entrypoint
