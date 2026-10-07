@@ -26,28 +26,20 @@ SLUG="$(echo "$TASK" | tr '[:upper:] ' '[:lower:]-' | tr -cd '[:alnum:]-' | cut 
 BRANCH="box/$(date +%Y%m%d-%H%M%S)-${SLUG}"
 git checkout -b "$BRANCH"
 
-# Build the full prompt: context bundle + task
-CONTEXT="$(cat "$CONTEXT_FILE")"
-PROMPT="${CONTEXT}
-
----
-
-# Task
-
-${TASK}
-
-Work in ${PROJECT_PATH}. Follow all standards above.
-When done: commit using conventional commits, then open a PR against main."
-
 case "$PROVIDER" in
     opencode)
         export OPENAI_BASE_URL="${BOX_OPENCODE_API_URL:?}"
         export OPENAI_API_KEY="${BOX_OPENCODE_API_KEY:?}"
-        opencode run --model "${BOX_OPENCODE_MODEL:?}" --message "$PROMPT"
+        # OPENCODE_FLAGS: set to "--auto" in your environment to skip permission prompts
+        opencode run \
+            --model "${BOX_OPENCODE_MODEL:?}" \
+            --dir "$PROJECT_PATH" \
+            -f "$CONTEXT_FILE" \
+            ${OPENCODE_FLAGS:-} \
+            "Your task: ${TASK}. Work in ${PROJECT_PATH}. Follow all standards in the attached context. When done: commit using conventional commits, then open a PR against main."
         ;;
     claude)
-        # Pass --print for non-interactive mode; add permission flags in your
-        # factory's instance config or via CLAUDE_FLAGS env var.
+        # CLAUDE_FLAGS: set in your environment to pass extra flags (e.g. permission opts)
         claude ${CLAUDE_FLAGS:-} --print "$PROMPT"
         ;;
     *)
