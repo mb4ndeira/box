@@ -1,0 +1,59 @@
+# box.toml — factory configuration
+# schema = "box/1.0"
+#
+# Copy this to box.toml and customize.
+# Place box.toml in ~/workspace/factory/ or wherever your factory instance lives.
+
+# ── Runtime ───────────────────────────────────────────────────────────────────
+
+[runtime]
+executor = "local"      # local | ssh | docker
+provider = "claude"     # claude | opencode
+
+# SSH executor — run worker on a remote machine
+[runtime.executor.ssh]
+host = "korora"         # hostname or tailscale name
+user = "ubuntu"         # omit to use current user
+
+# Docker executor — run worker in an isolated container
+[runtime.executor.docker]
+image   = "ghcr.io/mb4ndeira/box-worker:latest"
+runtime = "kata"        # optional: kata for VM-level isolation
+
+# OpenCode provider — use when running workers via OpenCode CLI
+[runtime.provider.opencode]
+model   = "9router/glm/glm-5.3-flash"
+api_url = "http://100.102.189.40:20128/v1"
+api_key = "${OPENAI_API_KEY}"
+
+# Claude provider — use when running workers via Claude Code CLI
+[runtime.provider.claude]
+# api_key defaults to $ANTHROPIC_API_KEY
+
+# ── Context — tacit knowledge injected into every worker ─────────────────────
+
+[context]
+# Files loaded and prepended to every worker's context.
+# Paths are expanded (~ supported). Missing files are skipped with a warning.
+standards = [
+    "~/workspace/agents/docs/standards/coding.md",
+    "~/workspace/agents/docs/standards/prose.md",
+    "~/workspace/agents/docs/standards/git.md",
+    "~/workspace/agents/docs/standards/testing.md",
+]
+workspace_map = "~/workspace/agents/docs/workspace/projects.toml"
+
+# ── Projects ──────────────────────────────────────────────────────────────────
+
+[[projects]]
+name    = "my-project"
+path    = "~/workspace/my-project"
+workers = 1             # max concurrent workers for this project
+
+# Per-project service requirements (provision before worker runs)
+[projects.services]
+infisical = false       # pull secrets from Infisical before task
+
+# Per-project context additions (merged with global context.standards)
+[projects.context]
+extra = []              # extra files to inject for this project only

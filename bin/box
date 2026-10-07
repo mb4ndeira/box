@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""
+box — dispatch tasks to workers.
+
+Usage:
+    box dispatch <project> "<task>"  [--config PATH] [--dry-run]
+    box provision <project>          [--config PATH]
+    box status                       [--config PATH]
+"""
+
+import argparse
+import sys
+import os
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
+
+from dispatch import dispatch_task
+from provision import provision_project
+from status import show_status
+from config import load_config, ConfigError
+
+DEFAULT_CONFIG = os.path.expanduser("~/workspace/factory/box.toml")
+
+
+def cmd_dispatch(args, config):
+    dispatch_task(config, args.project, args.task, dry_run=args.dry_run)
+
+
+def cmd_provision(args, config):
+    provision_project(config, args.project)
+
+
+def cmd_status(args, config):
+    show_status(config)
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="box", description="dispatch tasks to workers")
+    parser.add_argument("--config", default=DEFAULT_CONFIG, metavar="PATH")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p_dispatch = sub.add_parser("dispatch", help="dispatch a task to a worker")
+    p_dispatch.add_argument("project", help="project name from box.toml")
+    p_dispatch.add_argument("task", help="task description")
+    p_dispatch.add_argument("--dry-run", action="store_true")
+    p_dispatch.set_defaults(func=cmd_dispatch)
+
+    p_provision = sub.add_parser("provision", help="provision services for a project")
+    p_provision.add_argument("project", help="project name from box.toml")
+    p_provision.set_defaults(func=cmd_provision)
+
+    p_status = sub.add_parser("status", help="show worker status")
+    p_status.set_defaults(func=cmd_status)
+
+    args = parser.parse_args()
+
+    try:
+        config = load_config(args.config)
+    except ConfigError as e:
+        print(f"box: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    args.func(args, config)
+
+
+if __name__ == "__main__":
+    main()

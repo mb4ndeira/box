@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "box"
+version = "0.1.0"
+description = "Library for building agentic coding factories"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+box = "box.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lib*"]
