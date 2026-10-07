@@ -40,17 +40,14 @@ if [[ -n "${BOX_PROJECT_REPO:-}" ]]; then
     WORK_DIR="${PROJECT_PATH}/box-worker-$(date +%s)"
     mkdir -p "$(dirname "$WORK_DIR")"
 
+    CLONE_OPTS=()
     if [[ -n "${BOX_GITHUB_TOKEN:-}" ]]; then
-        # Embed token in URL for HTTPS auth — git never stores it
-        CLONE_URL="${BOX_PROJECT_REPO/https:\/\//https:\/\/${BOX_GITHUB_TOKEN}@}"
-    else
-        CLONE_URL="$BOX_PROJECT_REPO"
+        # Use a credential header so the token never appears in any URL
+        CLONE_OPTS+=(-c "http.extraHeader=Authorization: token ${BOX_GITHUB_TOKEN}")
     fi
 
-    git clone --depth 1 "$CLONE_URL" "$WORK_DIR"
+    git clone --depth 1 "${CLONE_OPTS[@]}" "$BOX_PROJECT_REPO" "$WORK_DIR"
     cd "$WORK_DIR"
-    # Remove embedded token from remote so it doesn't leak into git config
-    git remote set-url origin "$BOX_PROJECT_REPO"
 else
     # Local mode: use existing checkout
     cd "$PROJECT_PATH"
