@@ -15,12 +15,11 @@
 #   BOX_PROJECT_PATH    absolute path (local mode) or target clone dir (clone mode)
 #   BOX_TASK            task description
 #   BOX_CONTEXT_FILE    path to the assembled context bundle
-#   BOX_PROVIDER        claude | opencode
+#   BOX_PROVIDER        claude | opencode | simple
 # Optional:
 #   BOX_PROJECT_REPO    git clone URL — triggers clone mode
-#   BOX_GITHUB_TOKEN    token for private repo clones (HTTPS)
 #   BOX_OPENCODE_MODEL, BOX_OPENCODE_API_URL, BOX_OPENCODE_API_KEY
-#   OPENCODE_FLAGS      extra opencode run flags (e.g. "--auto")
+#   OPENCODE_FLAGS      extra opencode run flags
 #   CLAUDE_FLAGS        extra claude flags
 
 set -euo pipefail
@@ -36,15 +35,11 @@ echo "box worker: ${PROJECT_NAME} — ${TASK}"
 # ── Prepare working directory ─────────────────────────────────────────────────
 
 if [[ -n "${BOX_PROJECT_REPO:-}" ]]; then
-    # Clone mode: fresh isolated copy inside this executor environment.
-    # Git auth is the executor's responsibility — the container image must be
-    # pre-configured (e.g. via GH_TOKEN + gh auth setup-git in the Dockerfile).
     WORK_DIR="${PROJECT_PATH}/box-worker-$(date +%s)"
     mkdir -p "$(dirname "$WORK_DIR")"
     git clone --depth 1 "$BOX_PROJECT_REPO" "$WORK_DIR"
     cd "$WORK_DIR"
 else
-    # Local mode: use existing checkout
     cd "$PROJECT_PATH"
 fi
 
@@ -58,23 +53,60 @@ git checkout -b "$BRANCH"
 
 TASK_MSG="Your task: ${TASK}. Work in $(pwd). Follow all standards in the attached context. When done: commit using conventional commits, then open a PR against main."
 
-# Write task to a temp file so it can be attached with -f.
-# This avoids positional-arg parsing issues in opencode (e.g. JSON-like task strings).
 TASK_FILE=$(mktemp /tmp/box-task-XXXXXX.md)
 printf '%s\n' "$TASK_MSG" > "$TASK_FILE"
 trap 'rm -f "$TASK_FILE"' EXIT
 
 case "$PROVIDER" in
     opencode)
-        export OPENAI_BASE_URL="${BOX_OPENCODE_API_URL:?}"
+        MODEL="${BOX_OPENCODE_MODEL:?}"
         export OPENAI_API_KEY="${BOX_OPENCODE_API_KEY:?}"
+        export OPENAI_BASE_URL="${BOX_OPENCODE_API_URL:?}"
+        # Generate a project-level opencode config that uses @ai-sdk/openai-compatible
+        # (Chat Completions API). The built-in openai provider uses the Responses API
+        # which doesn't work with 9router/GLM — tool calls get aborted.
+        mkdir -p ~/.config/opencode
+        cat > ~/.config/opencode/opencode.jsonc << JSON
+{
+  "\$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "box-backend": {
+      "name": "Box Backend",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "{env:OPENAI_BASE_URL}",
+        "apiKey": "{env:OPENAI_API_KEY}"
+      },
+      "models": {
+        "${MODEL}": {
+          "name": "${MODEL}"
+        }
+      }
+    }
+  }
+}
+JSON
         opencode run \
-            --model "${BOX_OPENCODE_MODEL:?}" \
+            --model "box-backend/${MODEL}" \
             --dir "$(pwd)" \
             -f "$CONTEXT_FILE" \
             --auto \
             ${OPENCODE_FLAGS:-} \
             "$TASK_FILE"
+        ;;
+    simple)
+        # Lightweight: single curl call to the backend. Useful for chain-testing.
+        MODEL="${BOX_OPENCODE_MODEL:?}"
+        PAYLOAD=$(jq -n \
+            --arg model "$MODEL" \
+            --arg msg "$TASK_MSG" \
+            '{model: $model, messages: [{role: "user", content: $msg}], max_tokens: 512, stream: false}')
+        echo "box: calling ${BOX_OPENCODE_API_URL} with model ${MODEL}"
+        curl -sS "${BOX_OPENCODE_API_URL:?}/chat/completions" \
+            -H "Authorization: Bearer ${BOX_OPENCODE_API_KEY:?}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            | jq -r '.choices[0].message.content // .error // .'
         ;;
     claude)
         [[ -n "${BOX_CLAUDE_API_KEY:-}" ]] && export ANTHROPIC_API_KEY="${BOX_CLAUDE_API_KEY}"

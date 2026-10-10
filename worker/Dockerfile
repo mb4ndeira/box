@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     nodejs \
     npm \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # GitHub CLI
@@ -29,12 +30,19 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 RUN curl -fsSL https://opencode.ai/install | bash \
     && ln -s /root/.opencode/bin/opencode /usr/local/bin/opencode
 
+# Pre-install the openai-compatible AI SDK provider so opencode doesn't
+# need to download it at runtime. Must be in the opencode config dir.
+RUN mkdir -p /root/.config/opencode \
+    && cd /root/.config/opencode \
+    && npm init -y \
+    && npm install @ai-sdk/openai-compatible
+
 # Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code
 
 # Worker scripts
-COPY worker/entrypoint.sh /usr/local/bin/entrypoint
-COPY worker/init-auth.sh  /usr/local/bin/init-auth
+COPY worker/entrypoint.sh   /usr/local/bin/entrypoint
+COPY worker/init-auth.sh    /usr/local/bin/init-auth
 RUN chmod +x /usr/local/bin/entrypoint /usr/local/bin/init-auth
 
 # init-auth configures git credentials from GH_TOKEN at container startup,
