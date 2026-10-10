@@ -60,32 +60,29 @@ trap 'rm -f "$TASK_FILE"' EXIT
 case "$PROVIDER" in
     opencode)
         MODEL="${BOX_OPENCODE_MODEL:?}"
-        export OPENAI_API_KEY="${BOX_OPENCODE_API_KEY:?}"
-        export OPENAI_BASE_URL="${BOX_OPENCODE_API_URL:?}"
-        # Generate a project-level opencode config that uses @ai-sdk/openai-compatible
-        # (Chat Completions API). The built-in openai provider uses the Responses API
+        API_URL="${BOX_OPENCODE_API_URL:?}"
+        API_KEY="${BOX_OPENCODE_API_KEY:?}"
+        # Write an opencode config that uses @ai-sdk/openai-compatible (Chat
+        # Completions API). The built-in openai provider uses the Responses API
         # which doesn't work with 9router/GLM — tool calls get aborted.
+        # Same pattern as the korora kata-worker entrypoint.
         mkdir -p ~/.config/opencode
-        cat > ~/.config/opencode/opencode.jsonc << JSON
-{
-  "\$schema": "https://opencode.ai/config.json",
+        printf '{
   "provider": {
     "box-backend": {
       "name": "Box Backend",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "baseURL": "{env:OPENAI_BASE_URL}",
-        "apiKey": "{env:OPENAI_API_KEY}"
+        "baseURL": "%s",
+        "apiKey": "%s"
       },
       "models": {
-        "${MODEL}": {
-          "name": "${MODEL}"
-        }
+        "%s": { "name": "%s" }
       }
     }
   }
-}
-JSON
+}\n' "$API_URL" "$API_KEY" "$MODEL" "$MODEL" \
+            > ~/.config/opencode/opencode.json
         opencode run \
             --model "box-backend/${MODEL}" \
             --dir "$(pwd)" \
